@@ -1,4 +1,4 @@
-module github.com/phpdave11/gofpdi
+module github.com/tim-timpani/gofpdi
 
 go 1.12
 

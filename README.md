@@ -1,10 +1,8 @@
 # gofpdi
 [![MIT
 licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/phpdave11/gofpdi/master/LICENSE)
-[![Report](https://goreportcard.com/badge/github.com/phpdave11/gofpdi)](https://goreportcard.com/report/github.com/phpdave11/gofpdi)
-[![GoDoc](https://img.shields.io/badge/godoc-gofpdi-blue.svg)](https://godoc.org/github.com/phpdave11/gofpdi)
 
-## Go Free PDF Document Importer
+## Go Free PDF Document Importer/Exporter
 
 gofpdi allows you to import an existing PDF into a new PDF.  The following PDF generation libraries are supported:
 
@@ -12,8 +10,12 @@ gofpdi allows you to import an existing PDF into a new PDF.  The following PDF g
 
 - [gofpdf](https://github.com/phpdave11/gofpdf)
 
+support for exporting the following formats has been added:
+
+- Plain Text
+
 ## Acknowledgments
-This package’s code is derived from the [fpdi](https://github.com/Setasign/FPDI/tree/1.6.x-legacy) library created by [Jan Slabon](https://github.com/JanSlabon).
+This package’s code is a fork of github.com/phpdave11/gofpdi which is derived from the [fpdi](https://github.com/Setasign/FPDI/tree/1.6.x-legacy) library created by [Jan Slabon](https://github.com/JanSlabon).
 [mrtsbt](https://github.com/mrtsbt) added support for reading a PDF from an `io.ReadSeeker` stream and also added support for using gofpdi concurrently.  [Asher Tuggle](https://github.com/awesomeunleashed) added support for reading PDFs that have split xref tables.
 
 ## Examples
@@ -244,3 +246,28 @@ Generated PDF:
 Screenshot of PDF:
 
 ![example.jpg](https://user-images.githubusercontent.com/9421180/62728726-18b87500-b9e2-11e9-885c-7c68b7ac6222.jpg)
+
+### export example
+```go
+package main
+
+import (
+log "github.com/sirupsen/logrus"
+"github.com/tim-timpani/gofpdi"
+)
+
+const (
+testFileName   = "/Users/tim/Library/Mobile Documents/com~apple~CloudDocs/daddocs/Astra_Control_Service_documentation.pdf"
+exportFileName = "export.txt"
+)
+
+func main() {
+	exp, err := gofpdi.NewExporter("input.pdf")
+	if err != nil {
+		log.Fatalf("failed to create exporter : %+v", err)
+	}
+	if err := exp.ExportToPlainTextFile("export.txt"); err != nil {
+		log.Fatalf("failed to extract plain text : %+v", err)
+	}
+}
+```

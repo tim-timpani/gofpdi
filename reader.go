@@ -7,10 +7,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/tim-timpani/gofpdi/text"
 	"io"
 	"io/ioutil"
 	"math"
 	"os"
+	"regexp"
 	"strconv"
 )
 
@@ -1629,4 +1632,57 @@ func (this *PdfReader) read() error {
 	}
 
 	return nil
+}
+
+// getFontDefinitions - font definitions from a page font library (this allows us to calculate font width to more
+// accurately place exported text.
+func (this *PdfReader) getFontDefinitions(pageNumber int) (map[string]*text.FontDefinition, error) {
+	fontDefinitions := make(map[string]*text.FontDefinition)
+	resources, err := this.getPageResources(pageNumber)
+	if err != nil {
+		return nil, err
+	}
+	pageResourceFont, ok := resources.Dictionary["/Font"]
+	if !ok {
+		return nil, fmt.Errorf("failed to find font dictionary on page %d", pageNumber)
+	}
+	pageFonts, err := this.resolveObject(pageResourceFont)
+	for fontName := range pageFonts.Value.Dictionary {
+		if _, found := fontDefinitions[fontName]; !found {
+			newFont := text.FontDefinition{}
+			newFont.Name = fontName
+			fontLib := pageFonts.Value.Dictionary[fontName]
+			fontDef, err := this.resolveObject(fontLib)
+			if err != nil {
+				return nil, err
+			}
+			newFont.Type = fontDef.Value.Dictionary["/Type"].Int
+			newFont.Descriptor = fontDef.Value.Dictionary["/FontDescriptor"].Int
+			newFont.FirstChar = uint8(fontDef.Value.Dictionary["/FirstChar"].Int)
+			newFont.LastChar = uint8(fontDef.Value.Dictionary["/LastChar"].Int)
+			newFont.Base = fontDef.Value.Dictionary["/BaseFont"].String
+			for _, width := range fontDef.Value.Dictionary["/Widths"].Array {
+				newFont.Widths = append(newFont.Widths, width.Int)
+			}
+			fontDefinitions[fontName] = &newFont
+			log.Debugf("loaded font %s for page %d: base=%s  type=%d", newFont.Name, pageNumber, newFont.Base, newFont.Type)
+		}
+	}
+	return fontDefinitions, nil
+}
+
+// getPageTextBlocks - gets all the text blocks for a page and returns an array of strings
+func (this *PdfReader) getPageTextBlocks(pageNumber int) (blocks []string, blockErr error) {
+	var pageContent string
+	pageContent, blockErr = this.getContent(pageNumber)
+	if blockErr != nil {
+		return
+	}
+	textBlockRegex := regexp.MustCompile(`((?s)BT.*?ET)`)
+	blockMatches := textBlockRegex.FindAllStringSubmatch(pageContent, -1)
+	for _, blockMatch := range blockMatches {
+		blocks = append(blocks, blockMatch[0])
+	}
+	log.Debugf("retrieved %d text blocks from page %d ", len(blocks), pageNumber)
+	return blocks, nil
 }
